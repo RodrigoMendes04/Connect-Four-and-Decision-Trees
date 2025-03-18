@@ -1,3 +1,4 @@
+import os
 import concurrent.futures
 from time import sleep, time
 import algorithms
@@ -173,45 +174,28 @@ def player_vs_algorithm(game):
             pygame.display.update()
 
 def algorithm_vs_algorithm(game):
-    pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption('Connect 4 - ' + str(game.algorithm1) + ' vs ' + str(game.algorithm2))
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future1 = None
-        future2 = None
-
-        while True:
-            draw_board(game, screen)
-            event = pygame.event.wait()
-            if event.type == pygame.QUIT:
-                exit()
-            if game.turn == "O" and not future1:
-                future1 = executor.submit(algorithms.move, game, game.algorithm1)
-            elif game.turn == "X" and not future2:
-                future2 = executor.submit(algorithms.move, game, game.algorithm2)
-            if future1 and future1.done():
-                column = future1.result()
-                start_time = time()
-                if game.move(column):
-                    draw_board(game, screen)
-                    end_time = time()
-                    print(f"Algorithm 1 moved to column {column + 1}")
-                    print(f"Time taken: {end_time - start_time:.2f} seconds")
-                    print(game)
-                future1 = None
-            if future2 and future2.done():
-                column = future2.result()
-                start_time = time()
-                if game.move(column):
-                    draw_board(game, screen)
-                    end_time = time()
-                    print(f"Algorithm 2 moved to column {column + 1}")
-                    print(f"Time taken: {end_time - start_time:.2f} seconds")
-                    print(game)
-                future2 = None
-            pygame.time.delay(500)
-            pygame.display.update()
+    while True:
+        operators.refresh()
+        print(game)
+        if game.game_over(True):
+            if game.winner == "X":
+                print("Red wins!")
+            elif game.winner == "O":
+                print("Yellow wins!")
+            else:
+                print("It's a tie!")
+            break
+        elif game.turn == "O":
+            column = algorithms.move(game, game.algorithm1)
+            sleep(0.5)
+            if not game.move(column):
+                print("Invalid move")
+        else:
+            column = algorithms.move(game, game.algorithm2)
+            sleep(0.5)
+            if not game.move(column):
+                print("Invalid move")
+            print()
 
 def main(algorithm1, algorithm2, gui):
     game = operators.create_game()
@@ -219,7 +203,10 @@ def main(algorithm1, algorithm2, gui):
     game.algorithm2 = algorithm2
 
     if not gui:
-        play_on_terminal(game)
+        if algorithm1 and algorithm2:
+            algorithm_vs_algorithm(game)
+        else:
+            play_on_terminal(game)
     else:
         if algorithm1 is None:
             player_vs_player(game)

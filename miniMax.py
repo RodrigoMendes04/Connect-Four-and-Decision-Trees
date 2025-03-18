@@ -1,10 +1,12 @@
+# miniMax.py
+
 import random
 from time import time
 import operators
 
 PRINT_BEST = True
 PRINT_ALL = False
-MAX_DEPTH = 5
+MAX_DEPTH = 3  # Reduzir a profundidade máxima para 3
 
 def minimax(game, depth, player):
     nodes_generated = 0

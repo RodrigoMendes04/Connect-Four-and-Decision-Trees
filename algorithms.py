@@ -3,17 +3,15 @@ import miniMax
 import random
 
 def random_move(game):
-    possible_moves = []
-    for i in range(7):
-        if not game.full_column(i):
-            possible_moves.append(i)
-    random.shuffle(possible_moves)
-    return possible_moves.pop()
+    possible_moves = [col for col in range(game.COLUMNS) if not game.full_column(col)]
+    return random.choice(possible_moves)
 
 def move(game, algorithm):
     if algorithm == 'monteCarlo':
         return monteCarlo.main(game)
     elif algorithm == 'miniMax':
         return miniMax.main(game)
-    else:  # algorithm == 'random':
+    elif algorithm == 'random':
         return random_move(game)
+    else:
+        raise ValueError("Unknown algorithm: " + str(algorithm))

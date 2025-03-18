@@ -3,8 +3,9 @@ import random
 from time import time
 from operators import successors
 
-TIME = 3  # Increase the time to 3 seconds
+TIME = 1
 C = math.sqrt(2)
+
 PRINT_ALL = False
 PRINT_BEST = True
 
@@ -29,24 +30,20 @@ class Node:
             self.children.append(Node(move, self))
 
     def select_child(self):
-        total_visits = math.log(self.visits)
+        total_visits = math.log(self.visits + 1)
         best_score = -float("inf")
         best_children = []
-        unvisited_children = []
 
         for child in self.children:
             if child.visits == 0:
-                unvisited_children.append(child)
-            else:
-                exploration_term = math.sqrt(math.log(total_visits + 1) / child.visits)
-                score = child.wins / child.visits + C * exploration_term
-                if score == best_score:
-                    best_children.append(child)
-                elif score > best_score:
-                    best_score = score
-                    best_children = [child]
-        if unvisited_children:
-            return random.choice(unvisited_children)
+                return child
+            exploration_term = math.sqrt(total_visits / child.visits)
+            score = child.wins / child.visits + C * exploration_term
+            if score > best_score:
+                best_score = score
+                best_children = [child]
+            elif score == best_score:
+                best_children.append(child)
         return random.choice(best_children)
 
     def backpropagate(self, result):
@@ -59,26 +56,32 @@ def monte_carlo_tree_search(game, t):
     root = Node(game)
     ti = time()
     tf = time()
-    nodes_expanded = []
 
     while tf - ti < t:
         node = root
+
+        # Select
         while not node.is_leaf():
             node = node.select_child()
+
+        # Expand
         if not node.is_fully_expanded():
             node.expand()
-            new_node = random.choice(node.children)
-        else:
-            new_node = node.select_child()
-        result = simulate(new_node.game)
-        new_node.backpropagate(result)
-        nodes_expanded.append(root.visits)
+            node = random.choice(node.children)
+
+        # Simulate
+        result = simulate(node.game)
+
+        # Backpropagate
+        node.backpropagate(result)
+
         tf = time()
 
+    # Choose best move
     best_score = float("-inf")
     best_move = None
     for child in root.children:
-        if child.visits > 0:  # Ensure the child has been visited at least once
+        if child.visits > 0:  # Ensure visits is greater than zero
             score = child.wins / child.visits
             if PRINT_ALL:
                 print("Column: " + str(child.game.last_move) + " Win rate: " + str(round(score * 100, 2)) + "%")
@@ -86,7 +89,7 @@ def monte_carlo_tree_search(game, t):
                 best_score = score
                 best_move = child.game.last_move
 
-    return best_move, best_score, len(nodes_expanded)
+    return best_move, best_score, root.visits
 
 def simulate(game):
     while not game.game_over():
