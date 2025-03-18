@@ -1,5 +1,5 @@
 import concurrent.futures
-from time import sleep
+from time import sleep, time
 import algorithms
 import operators
 import contextlib
@@ -22,6 +22,11 @@ YELLOW = (237, 175, 40)
 DARK_YELLOW = (148, 105, 13)
 RED = (255, 36, 0)
 DARK_RED = (94, 25, 20)
+
+def draw_message(screen, message):
+    font = pygame.font.SysFont("monospace", 50)
+    label = font.render(message, 1, BLACK)
+    screen.blit(label, (40, 10))
 
 def draw_hover_piece(screen, current_player, column, piece_surface):
     color = YELLOW if current_player == "O" else RED
@@ -49,6 +54,11 @@ def draw_board(game, screen):
                 draw(DARK_YELLOW)
             elif game.board[r][c] == "x":
                 draw(DARK_RED)
+
+    if game.turn == "O":
+        draw_message(screen, "Yellow Turn")
+    else:
+        draw_message(screen, "Red Turn")
 
     if game.game_over(True):
         font = pygame.font.Font(None, 64)
@@ -112,7 +122,6 @@ def play_on_terminal(game):
 
 def player_vs_player(game):
     pygame.init()
-    clock = pygame.time.Clock()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption('Connect 4 - player vs player')
 
@@ -132,7 +141,6 @@ def player_vs_player(game):
 
 def player_vs_algorithm(game):
     pygame.init()
-    clock = pygame.time.Clock()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption('Connect 4 - player vs ' + str(game.algorithm1))
 
@@ -155,13 +163,17 @@ def player_vs_algorithm(game):
                         future = executor.submit(algorithms.move, game, game.algorithm1)
             if future and future.done():
                 column = future.result()
+                start_time = time()
                 if game.move(column):
                     draw_board(game, screen)
+                    end_time = time()
+                    print(f"Computer moved to column {column + 1}")
+                    print(f"Time taken: {end_time - start_time:.2f} seconds")
+                    print(game)
             pygame.display.update()
 
 def algorithm_vs_algorithm(game):
     pygame.init()
-    clock = pygame.time.Clock()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption('Connect 4 - ' + str(game.algorithm1) + ' vs ' + str(game.algorithm2))
 
@@ -180,23 +192,33 @@ def algorithm_vs_algorithm(game):
                 future2 = executor.submit(algorithms.move, game, game.algorithm2)
             if future1 and future1.done():
                 column = future1.result()
+                start_time = time()
                 if game.move(column):
                     draw_board(game, screen)
+                    end_time = time()
+                    print(f"Algorithm 1 moved to column {column + 1}")
+                    print(f"Time taken: {end_time - start_time:.2f} seconds")
+                    print(game)
                 future1 = None
             if future2 and future2.done():
                 column = future2.result()
+                start_time = time()
                 if game.move(column):
                     draw_board(game, screen)
+                    end_time = time()
+                    print(f"Algorithm 2 moved to column {column + 1}")
+                    print(f"Time taken: {end_time - start_time:.2f} seconds")
+                    print(game)
                 future2 = None
             pygame.time.delay(500)
             pygame.display.update()
 
-def main(algorithm1, algorithm2, GUI):
+def main(algorithm1, algorithm2, gui):
     game = operators.create_game()
     game.algorithm1 = algorithm1
     game.algorithm2 = algorithm2
 
-    if not GUI:
+    if not gui:
         play_on_terminal(game)
     else:
         if algorithm1 is None:
