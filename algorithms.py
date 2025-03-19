@@ -1,5 +1,4 @@
 import monteCarlo
-import miniMax
 import random
 
 def random_move(game):
@@ -9,8 +8,6 @@ def random_move(game):
 def move(game, algorithm):
     if algorithm == 'monteCarlo':
         return monteCarlo.main(game)
-    elif algorithm == 'miniMax':
-        return miniMax.main(game)
     elif algorithm == 'random':
         return random_move(game)
     else:
