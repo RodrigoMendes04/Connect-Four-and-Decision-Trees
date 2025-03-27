@@ -76,6 +76,51 @@ def draw_board(game, screen):
         exit()
     pygame.display.update()
 
+def input_column():
+    while True:
+        column = input("Choose a column: ")
+        if column.isdigit():
+            column = int(column)
+            if 1 <= column <= COLUMN_COUNT:
+                return column - 1
+        print("Invalid column")
+
+def play_on_terminal(game):
+    while True:
+        operators.refresh()
+        print(game)
+        if game.game_over(True):
+            if game.winner == "X":
+                print("Red wins!")
+            elif game.winner == "O":
+                print("Yellow wins!")
+            else:
+                print("It's a tie!")
+            break
+        elif game.turn == "O":
+            print("Yellow's turn")
+            if game.algorithm2 is None:
+                column = input_column()
+            else:
+                column = algorithms.move(game, game.algorithm1)
+                sleep(0.5)
+            if not game.move(column):
+                print("Invalid move")
+        else:
+            print("Red's turn")
+            if game.algorithm2 is None:
+                if game.algorithm1 is None:
+                    column = input_column()
+                else:
+                    column = algorithms.move(game, game.algorithm1)
+                    sleep(0.5)
+            else:
+                column = algorithms.move(game, game.algorithm2)
+                sleep(0.5)
+            if not game.move(column):
+                print("Invalid move")
+            print()
+
 def player_vs_player(game):
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -100,41 +145,29 @@ def player_vs_algorithm(game):
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption('Connect 4 - player vs ' + str(game.algorithm1))
 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future = None
-
-        while True:
-            draw_board(game, screen)
-            event = pygame.event.wait()
+    while True:
+        draw_board(game, screen)
+        for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 exit()
             if event.type == pygame.MOUSEMOTION:
-                draw_hover_piece(screen, game.turn, pygame.mouse.get_pos()[0] // SQUARE_SIZE, pygame.Surface((SQUARE_SIZE, SQUARE_SIZE), pygame.SRCALPHA))
+                draw_hover_piece(screen, game.turn, event.pos[0] // SQUARE_SIZE, pygame.Surface((SQUARE_SIZE, SQUARE_SIZE), pygame.SRCALPHA))
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                pos = pygame.mouse.get_pos()
-                column = pos[0] // SQUARE_SIZE
+                column = event.pos[0] // SQUARE_SIZE
                 if game.move(column):
                     draw_board(game, screen)
-                    if not game.game_over():
-                        future = executor.submit(algorithms.move, game, game.algorithm1)
-            if future and future.done():
-                column = future.result()
-                start_time = time()
-                if game.move(column):
-                    draw_board(game, screen)
-                    end_time = time()
-                    print(f"Computer moved to column {column + 1}")
-                    print(f"Time taken: {end_time - start_time:.2f} seconds")
-                    print(game)
-            pygame.display.update()
+                    if not game.game_over() and game.algorithm1:
+                        # Movimento do computador (sem threads)
+                        column = algorithms.move(game, game.algorithm1)
+                        pygame.time.delay(500)  # Delay de 500ms para evitar travamentos
+                        if game.move(column):
+                            draw_board(game, screen)
+        pygame.display.update()
 
 def algorithm_vs_algorithm(game):
-    pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption('Connect 4 - algorithm vs algorithm')
-
     while True:
-        draw_board(game, screen)
+        operators.refresh()
+        print(game)
         if game.game_over(True):
             if game.winner == "X":
                 print("Red wins!")
@@ -154,16 +187,21 @@ def algorithm_vs_algorithm(game):
             if not game.move(column):
                 print("Invalid move")
             print()
-        pygame.display.update()
 
 def main(algorithm1, algorithm2, gui):
     game = operators.create_game()
     game.algorithm1 = algorithm1
     game.algorithm2 = algorithm2
 
-    if algorithm1 is None:
-        player_vs_player(game)
-    elif algorithm2 is None:
-        player_vs_algorithm(game)
+    if not gui:
+        if algorithm1 and algorithm2:
+            algorithm_vs_algorithm(game)
+        else:
+            play_on_terminal(game)
     else:
-        algorithm_vs_algorithm(game)
+        if algorithm1 is None:
+            player_vs_player(game)
+        if algorithm2 is None:
+            player_vs_algorithm(game)
+        else:
+            algorithm_vs_algorithm(game)

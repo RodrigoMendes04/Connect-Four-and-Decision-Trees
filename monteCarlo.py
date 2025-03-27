@@ -1,98 +1,131 @@
 import math
 import random
 from time import time
-from game import Game
+import pickle
 
-TIME = 3  # Tempo máximo para o MCTS pensar (em segundos)
-C = math.sqrt(2)  # Constante de exploração
+TIME = 2  # Increased time limit for MCTS in seconds
+C = math.sqrt(2)  # Exploration constant
+
+PRINT_ALL = False
+PRINT_BEST = True
 
 class Node:
-    def __init__(self, game_state, parent=None, move=None):
-        self.game_state = game_state  # Estado atual do jogo
-        self.parent = parent  # Nó pai
-        self.move = move  # Movimento que levou a este estado
-        self.children = []  # Lista de nós filhos
-        self.wins = 0  # Número de vitórias nas simulações
-        self.visits = 0  # Número de visitas nas simulações
-        self.untried_moves = self.get_legal_moves()  # Movimentos ainda não explorados
+    def __init__(self, game, parent=None):
+        self.game = game
+        self.parent = parent
+        self.children = []
+        self.wins = 0
+        self.visits = 0
 
-    def get_legal_moves(self):
-        # Retorna uma lista de colunas válidas para jogar
-        return [col for col in range(self.game_state.COLUMNS) if not self.game_state.full_column(col)]
+    def is_leaf(self):
+        return self.game.game_over() or len(self.children) == 0
+
+    def is_fully_expanded(self):
+        return len(self.children) == len(self.game.get_possible_moves())
+
+    def expand(self):
+        possible_moves = self.game.get_possible_moves()
+        for move in possible_moves:
+            new_game = self.game.make_copy()
+            new_game.make_move(move)
+            self.children.append(Node(new_game, self))
 
     def select_child(self):
-        # Seleciona o filho com o maior UCB1 (Upper Confidence Bound)
         best_score = -float("inf")
-        best_child = None
+        best_children = []
 
         for child in self.children:
             if child.visits == 0:
-                return child  # Retorna um filho não visitado
-            exploitation = child.wins / child.visits
-            exploration = math.sqrt(2 * math.log(self.visits) / child.visits)
-            score = exploitation + C * exploration
-
+                return child
+            # UCB1 formula
+            exploration = math.sqrt(math.log(self.visits) / child.visits)
+            score = (child.wins / child.visits) + C * exploration
             if score > best_score:
                 best_score = score
-                best_child = child
+                best_children = [child]
+            elif score == best_score:
+                best_children.append(child)
+        return random.choice(best_children)
 
-        return best_child
-
-    def expand(self):
-        # Expande um movimento não tentado
-        move = self.untried_moves.pop()
-        new_game_state = self.game_state.__copy__()
-        new_game_state.move(move)
-        child_node = Node(new_game_state, self, move)
-        self.children.append(child_node)
-        return child_node
-
-    def update(self, result):
-        # Atualiza as estatísticas do nó com o resultado da simulação
+    def backpropagate(self, result):
         self.visits += 1
         self.wins += result
+        if self.parent is not None:
+            self.parent.backpropagate(result)
 
-def simulate(game_state):
-    # Simula um jogo aleatório até o fim
-    while not game_state.game_over():
-        legal_moves = [col for col in range(game_state.COLUMNS) if not game_state.full_column(col)]
-        move = random.choice(legal_moves)
-        game_state.move(move)
-    # Retorna 1 se o jogador atual venceu, -1 se perdeu, 0 se empate
-    if game_state.winner == "X":
-        return 1
-    elif game_state.winner == "O":
-        return -1
-    return 0
-
-def monte_carlo_tree_search(game, time_limit):
+def monte_carlo_tree_search(game, t):
     root = Node(game)
+    ti = time()
 
-    start_time = time()
-    while time() - start_time < time_limit:
+    while time() - ti < t:
         node = root
 
-        # Seleção: Escolha do melhor nó filho
-        while not node.untried_moves and node.children:
+        # Selection
+        while not node.is_leaf():
             node = node.select_child()
 
-        # Expansão: Expande um nó não explorado
-        if node.untried_moves:
-            node = node.expand()
+        # Expansion
+        if not node.is_fully_expanded() and not node.game.game_over():
+            node.expand()
+            if node.children:
+                node = random.choice(node.children)
 
-        # Simulação: Simula um jogo aleatório a partir do nó expandido
-        result = simulate(node.game_state.__copy__())
+        # Simulation
+        result = simulate(node.game.make_copy(), node.game.current_player)
 
-        # Retropropagação: Atualiza as estatísticas dos nós pais
-        while node is not None:
-            node.update(result)
-            node = node.parent
+        # Backpropagation
+        node.backpropagate(result)
 
-    # Escolhe o movimento mais visitado
-    best_move = max(root.children, key=lambda c: c.visits).move
-    return best_move
+    # Choose best move
+    best_score = -float("inf")
+    best_move = None
+    for child in root.children:
+        if child.visits > 0:
+            score = child.wins / child.visits
+            if score > best_score:
+                best_score = score
+                best_move = child.game.last_move
+    return best_move, best_score, root.visits
 
-def main(game):
-    best_move = monte_carlo_tree_search(game, TIME)
-    print(f"Monte Carlo escolheu a coluna: {best_move}")
-    return best_move
+def simulate(game, player):
+    while not game.game_over():
+        possible_moves = game.get_possible_moves()
+        if not possible_moves:
+            break
+        move = random.choice(possible_moves)
+        game.make_move(move)
+
+    if game.winner == player:
+        return 1
+    elif game.winner == "Draw":
+        return 0
+    else:
+        return -1
+
+def save_training_data(data, filename="training_data.pkl"):
+    with open(filename, "wb") as f:
+        pickle.dump(data, f)
+
+def load_training_data(filename="training_data.pkl"):
+    try:
+        with open(filename, "rb") as f:
+            return pickle.load(f)
+    except FileNotFoundError:
+        return None
+
+def train(game, iterations, save_file="training_data.pkl"):
+    data = load_training_data(save_file) or {}
+    print("Loaded training data.")
+    for i in range(iterations):
+        print(f"Training iteration {i+1}/{iterations}")
+        monte_carlo_tree_search(game, TIME)
+    save_training_data(data, save_file)
+    print("Training data saved.")
+
+def move(game, algorithm):
+    if algorithm == "Monte Carlo":
+        best_move, _, _ = monte_carlo_tree_search(game, TIME)
+        return best_move
+    elif algorithm == "Random":
+        possible_moves = game.get_possible_moves()
+        return random.choice(possible_moves)
