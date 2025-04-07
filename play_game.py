@@ -12,7 +12,6 @@ with contextlib.redirect_stdout(None):
 COLUMN_COUNT = 7
 ROW_COUNT = 6
 SQUARE_SIZE = 100
-
 WIDTH = COLUMN_COUNT * SQUARE_SIZE
 HEIGHT = (ROW_COUNT + 1) * SQUARE_SIZE
 
