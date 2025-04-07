@@ -3,8 +3,8 @@ import random
 from time import time
 import pickle
 
-TIME = 2  # Increased time limit for MCTS in seconds
-C = math.sqrt(2)  # Exploration constant
+NUM_SIMULATIONS = 10000  # Número fixo de iterações para MCTS
+C = math.sqrt(2)  # Constante de exploração
 
 PRINT_ALL = False
 PRINT_BEST = True
@@ -37,7 +37,7 @@ class Node:
         for child in self.children:
             if child.visits == 0:
                 return child
-            # UCB1 formula
+            # Fórmula UCB1
             exploration = math.sqrt(math.log(self.visits) / child.visits)
             score = (child.wins / child.visits) + C * exploration
             if score > best_score:
@@ -53,30 +53,29 @@ class Node:
         if self.parent is not None:
             self.parent.backpropagate(result)
 
-def monte_carlo_tree_search(game, t):
+def monte_carlo_tree_search(game, num_simulations):
     root = Node(game)
-    ti = time()
 
-    while time() - ti < t:
+    for _ in range(num_simulations):
         node = root
 
-        # Selection
+        # Seleção
         while not node.is_leaf():
             node = node.select_child()
 
-        # Expansion
+        # Expansão
         if not node.is_fully_expanded() and not node.game.game_over():
             node.expand()
             if node.children:
                 node = random.choice(node.children)
 
-        # Simulation
+        # Simulação
         result = simulate(node.game.make_copy(), node.game.current_player)
 
-        # Backpropagation
+        # Retropropagação
         node.backpropagate(result)
 
-    # Choose best move
+    # Escolher melhor movimento
     best_score = -float("inf")
     best_move = None
     for child in root.children:
@@ -118,13 +117,13 @@ def train(game, iterations, save_file="training_data.pkl"):
     print("Loaded training data.")
     for i in range(iterations):
         print(f"Training iteration {i+1}/{iterations}")
-        monte_carlo_tree_search(game, TIME)
+        monte_carlo_tree_search(game, NUM_SIMULATIONS)
     save_training_data(data, save_file)
     print("Training data saved.")
 
 def move(game, algorithm):
     if algorithm == "Monte Carlo":
-        best_move, _, _ = monte_carlo_tree_search(game, TIME)
+        best_move, _, _ = monte_carlo_tree_search(game, NUM_SIMULATIONS)
         return best_move
     elif algorithm == "Random":
         possible_moves = game.get_possible_moves()
