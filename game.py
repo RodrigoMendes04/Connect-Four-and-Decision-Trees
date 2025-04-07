@@ -35,6 +35,7 @@ class Game:
         self.algorithm2 = algorithm2
         self.shadow_column = None
         self.running = True
+        self.width= self.WIDTH
 
         # PyGame specific attributes (initialized when needed)
         self.screen = None
