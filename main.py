@@ -21,11 +21,9 @@ def choose_interface():
 def choose_algorithm(player_num):
     print(f"\nChoose algorithm for Player {player_num}:")
     print("1. Monte Carlo")
-    print("2. Random")
     choice = input("Enter your choice (1/2): ")
 
     if choice == "1": return "Monte Carlo"
-    elif choice == "2": return "Random"
     else:
         print("Invalid choice, defaulting to Random")
         return "Random"
